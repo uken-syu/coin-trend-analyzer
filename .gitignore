@@ -27,11 +27,11 @@ Thumbs.db
 
 # 报告文件（可选：如果不想提交生成的报告）
 reports/
-*.md
-!README.md
+reports/*.md
 
 # 日志文件
 *.log
+logs/
 
 # 测试覆盖率
 .coverage

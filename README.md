@@ -69,6 +69,29 @@ python main.py --schedule
 python main.py --schedule --time 09:30
 ```
 
+### 4. macOS 自动化定时任务（推荐）
+
+使用 launchd 实现真正的自动化，**合盖也能运行**：
+
+```bash
+# 启动 launchd 定时任务（每天 08:00 自动执行）
+./launchd_setup.sh start
+
+# 查看运行状态
+./launchd_setup.sh status
+
+# 立即测试执行
+./launchd_setup.sh test
+```
+
+**特点**：
+- ✅ Mac 睡眠时自动唤醒执行
+- ✅ 功耗极低（每天额外耗电 0.2-0.5%）
+- ✅ 完全自动化，无需人工干预
+- ✅ 详细日志记录
+
+详细配置请参考：[launchd 配置指南](LAUNCHD_GUIDE.md)
+
 ---
 
 ## 📁 项目结构
