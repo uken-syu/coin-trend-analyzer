@@ -1,0 +1,43 @@
+# 环境变量文件（包含敏感信息，绝对不能提交）
+.env
+
+# Python 缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv
+
+# IDE 配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 报告文件（可选：如果不想提交生成的报告）
+reports/
+*.md
+!README.md
+
+# 日志文件
+*.log
+
+# 测试覆盖率
+.coverage
+htmlcov/
+
+# 分发/打包
+dist/
+build/
+*.egg-info/
