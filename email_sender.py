@@ -4,12 +4,9 @@
 Gmail 需要开启「两步验证」并生成「应用专用密码」
 """
 
-import os
 import re
 import smtplib
 from datetime import datetime
-from email import encoders
-from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -280,18 +277,8 @@ class EmailSender:
             html_body = self.build_html_email(analysis, coin_data, report_path, model=model)
             msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-            # 附件：Markdown 报告文件
-            if report_path and os.path.exists(report_path):
-                with open(report_path, "rb") as f:
-                    attachment = MIMEBase("application", "octet-stream")
-                    attachment.set_payload(f.read())
-                    encoders.encode_base64(attachment)
-                    filename = os.path.basename(report_path)
-                    attachment.add_header(
-                        "Content-Disposition",
-                        f'attachment; filename="{filename}"',
-                    )
-                    msg.attach(attachment)
+            # 不再添加附件，节省 Gmail 存储空间
+            # 所有信息已包含在 HTML 邮件正文中
 
             # 发送
             with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as server:
