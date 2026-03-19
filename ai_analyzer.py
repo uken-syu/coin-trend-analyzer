@@ -61,16 +61,61 @@ class AIAnalyzer:
             if tech_info:
                 lines.append("  技术指标:")
                 lines.append(f"    趋势: {tech_info.get('trend', 'N/A')}")
+
+                # 量化评分
+                score = tech_info.get("signal_score", 0)
+                signal_interp = tech_info.get("signal_interpretation", "N/A")
+                lines.append(f"    量化评分: {score}/5 ({signal_interp})")
+
+                # 移动平均线
                 if tech_info.get("ma5"):
                     lines.append(f"    MA5: ${tech_info['ma5']:,.4f}")
                 if tech_info.get("ma10"):
                     lines.append(f"    MA10: ${tech_info['ma10']:,.4f}")
                 if tech_info.get("ma20"):
                     lines.append(f"    MA20: ${tech_info['ma20']:,.4f}")
+
+                # RSI
                 if tech_info.get("rsi") is not None:
                     rsi = tech_info["rsi"]
                     rsi_status = "超买" if rsi > 70 else ("超卖" if rsi < 30 else "正常")
                     lines.append(f"    RSI(14): {rsi:.1f}（{rsi_status}）")
+
+                # MACD
+                if tech_info.get("macd") is not None:
+                    macd = tech_info["macd"]
+                    macd_hist = tech_info.get("macd_histogram", 0)
+                    macd_signal = "多头" if macd_hist > 0 else "空头"
+                    lines.append(f"    MACD: {macd:.6f} ({macd_signal}动能)")
+
+                # 布林带
+                if tech_info.get("bollinger_upper"):
+                    bb_upper = tech_info["bollinger_upper"]
+                    bb_lower = tech_info.get("bollinger_lower", 0)
+                    bb_position = (
+                        "下轨附近"
+                        if price < bb_lower * 1.02
+                        else ("上轨附近" if price > bb_upper * 0.98 else "中轨区间")
+                    )
+                    lines.append(
+                        f"    布林带: 上${bb_upper:,.4f} / 下${bb_lower:,.4f} ({bb_position})"
+                    )
+
+                # ATR（波动率）
+                if tech_info.get("atr"):
+                    atr = tech_info["atr"]
+                    atr_pct = (atr / price * 100) if price > 0 else 0
+                    lines.append(f"    ATR(14): ${atr:.4f} (波动率 {atr_pct:.2f}%)")
+
+                # ADX（趋势强度）
+                if tech_info.get("adx"):
+                    adx = tech_info["adx"]
+                    adx_strength = (
+                        "强趋势" if adx > 25 else ("弱趋势/震荡" if adx < 20 else "中等趋势")
+                    )
+                    lines.append(f"    ADX(14): {adx:.1f} ({adx_strength})")
+
+                # 支撑阻力
                 if tech_info.get("resistance_levels"):
                     res = [f"${r:,.4f}" for r in tech_info["resistance_levels"]]
                     lines.append(f"    阻力位: {', '.join(res)}")
@@ -212,8 +257,61 @@ class AIAnalyzer:
 {news_text}
 
 ═══════════════════════════════════════════════
-📋 分析要求
+📋 分析要求与判断标准
 ═══════════════════════════════════════════════
+
+【重要】操作建议的量化判断标准（避免主观偏见）：
+
+## 加仓条件（必须同时满足至少 3-4 个）：
+1. ✅ 价格在关键支撑位附近（距离支撑 < 3%）
+2. ✅ RSI < 35（接近或进入超卖区）
+3. ✅ 恐惧贪婪指数 < 30（极度恐惧）
+4. ✅ 有明确的基本面利好消息
+5. ✅ 价格虽跌但成交量未放大（说明抛压不重）
+6. ✅ 从近期高点回撤 > 10% 但 < 25%（合理回调区间）
+7. ✅ 风险收益比 > 2:1（潜在收益是潜在亏损的2倍以上）
+
+## 减仓条件（满足任意 2-3 个即应考虑）：
+1. ⚠️ 价格跌破关键支撑位且无法快速收回
+2. ⚠️ 从近期高点回撤 > 20%（深度回调）
+3. ⚠️ RSI < 30 但价格继续下跌（超卖钝化，说明卖压极强）
+4. ⚠️ 出现重大利空消息（监管、黑客、项目方问题等）
+5. ⚠️ 成交量放大但价格不涨反跌（顶背离）
+6. ⚠️ 连续 3 天收阴线且每天跌幅 > 3%（趋势转弱）
+7. ⚠️ MA5 下穿 MA10（死叉信号）
+8. ⚠️ 风险收益比 < 1:1（潜在亏损大于潜在收益）
+
+## 观望条件：
+- 不满足明确的加仓条件
+- 也不满足明确的减仓条件
+- 或者信号相互矛盾（如技术面偏空但基本面偏多）
+
+【关键原则】：
+1. ⚠️ 不要因为"恐惧指数低"就盲目建议加仓！恐惧可能持续很久！
+2. ⚠️ 不要因为"历史经验"就忽视当前的技术破位信号！
+3. ⚠️ 风险控制优先于抄底！宁可错过机会，不要盲目接飞刀！
+4. ✅ 加仓要分批，减仓要果断！
+5. ✅ 当趋势明确向下时（连续跌破支撑），应该建议减仓而不是"等待"！
+
+【量化评分系统说明】：
+每个币种都有一个"量化评分"（-5 到 +5），计算规则：
+- 价格 > MA5/MA10/MA20：各 +1 分
+- 价格 < MA5/MA10/MA20：各 -1 分
+- RSI < 30（超卖）：+1 分
+- RSI > 70（超买）：-1 分
+- MACD 柱状图 > 0（多头动能）：+1 分
+- MACD 柱状图 < 0（空头动能）：-1 分
+- 价格触及布林带下轨（超卖）：+1 分
+- 价格触及布林带上轨（超买）：-1 分
+
+评分解读：
+- 得分 ≥ 3：强烈看多（技术面全面向好）
+- 得分 1-2：偏多（技术面略占优）
+- 得分 0：中性（多空平衡）
+- 得分 -1 到 -2：偏空（技术面略偏弱）
+- 得分 ≤ -3：强烈看空（技术面全面转弱）
+
+⚠️ 注意：量化评分只是参考，最终建议需要结合基本面、新闻、市场环境综合判断！
 
 请按照以下结构输出分析报告（**必须严格按此顺序**）：
 

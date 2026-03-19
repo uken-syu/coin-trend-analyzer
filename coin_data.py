@@ -228,10 +228,72 @@ class CoinDataFetcher:
                 return 100.0
             return round(100 - 100 / (1 + avg_g / avg_l), 2)
 
+        def ema(data, period):
+            """计算指数移动平均"""
+            if len(data) < period:
+                return None
+            multiplier = 2 / (period + 1)
+            ema_val = sum(data[:period]) / period
+            for price in data[period:]:
+                ema_val = (price - ema_val) * multiplier + ema_val
+            return round(ema_val, 8)
+
+        def macd_indicator(data):
+            """计算 MACD 指标"""
+            if len(data) < 26:
+                return None, None, None
+            ema12 = ema(data, 12)
+            ema26 = ema(data, 26)
+            if ema12 is None or ema26 is None:
+                return None, None, None
+            macd_line = ema12 - ema26
+            # 信号线是 MACD 的 9 日 EMA（简化处理）
+            signal_line = macd_line * 0.9  # 简化
+            histogram = macd_line - signal_line
+            return round(macd_line, 8), round(signal_line, 8), round(histogram, 8)
+
+        def bollinger_bands(data, period=20, std_dev=2):
+            """计算布林带"""
+            if len(data) < period:
+                return None, None, None
+            middle = ma(data, period)
+            if middle is None:
+                return None, None, None
+            variance = sum((x - middle) ** 2 for x in data[-period:]) / period
+            std = variance**0.5
+            upper = round(middle + std_dev * std, 8)
+            lower = round(middle - std_dev * std, 8)
+            return upper, middle, lower
+
+        def atr_indicator(data, period=14):
+            """计算平均真实波幅（ATR）- 简化版"""
+            if len(data) < period + 1:
+                return None
+            true_ranges = [abs(data[i] - data[i - 1]) for i in range(1, len(data))]
+            if len(true_ranges) < period:
+                return None
+            return round(sum(true_ranges[-period:]) / period, 8)
+
+        def adx_indicator(data, period=14):
+            """计算平均趋向指数（ADX）- 简化版"""
+            if len(data) < period + 1:
+                return None
+            changes = [abs(data[i] - data[i - 1]) for i in range(1, len(data))]
+            if len(changes) < period:
+                return None
+            avg_change = sum(changes[-period:]) / period
+            avg_price = sum(data[-period:]) / period
+            adx_val = (avg_change / avg_price) * 100 if avg_price > 0 else 0
+            return round(min(adx_val * 10, 100), 2)
+
         ma5 = ma(daily_closes, 5)
         ma10 = ma(daily_closes, 10)
         ma20 = ma(daily_closes, 20)
         rsi_val = rsi(daily_closes)
+        macd_line, macd_signal, macd_hist = macd_indicator(daily_closes)
+        bb_upper, bb_middle, bb_lower = bollinger_bands(daily_closes)
+        atr_val = atr_indicator(daily_closes)
+        adx_val = adx_indicator(daily_closes)
 
         # 趋势判断
         trend = "震荡"
@@ -245,6 +307,45 @@ class CoinDataFetcher:
                 trend = "短期偏强"
             else:
                 trend = "短期偏弱"
+
+        # 量化评分系统（-5 到 +5）
+        score = 0
+
+        # 技术面评分：均线
+        if ma5 and current_price > ma5:
+            score += 1
+        elif ma5 and current_price < ma5:
+            score -= 1
+
+        if ma10 and current_price > ma10:
+            score += 1
+        elif ma10 and current_price < ma10:
+            score -= 1
+
+        if ma20 and current_price > ma20:
+            score += 1
+        elif ma20 and current_price < ma20:
+            score -= 1
+
+        # RSI 评分
+        if rsi_val:
+            if rsi_val < 30:
+                score += 1  # 超卖，可能反弹
+            elif rsi_val > 70:
+                score -= 1  # 超买，注意回调
+
+        # MACD 评分
+        if macd_hist:
+            if macd_hist > 0:
+                score += 1  # 多头动能
+            else:
+                score -= 1  # 空头动能
+
+        # 布林带评分
+        if bb_lower and current_price < bb_lower:
+            score += 1  # 触及下轨，超卖
+        elif bb_upper and current_price > bb_upper:
+            score -= 1  # 触及上轨，超买
 
         # 支撑/阻力：用近48小时（最近2天）的高低点
         recent = hourly[-48:] if len(hourly) >= 48 else hourly
@@ -261,15 +362,37 @@ class CoinDataFetcher:
         if not support:
             support = sorted_asc[:3]
 
+        # 评分解读
+        if score >= 3:
+            signal = "强烈看多"
+        elif score >= 1:
+            signal = "偏多"
+        elif score <= -3:
+            signal = "强烈看空"
+        elif score <= -1:
+            signal = "偏空"
+        else:
+            signal = "中性"
+
         return {
             "current_price": current_price,
             "ma5": ma5,
             "ma10": ma10,
             "ma20": ma20,
             "rsi": rsi_val,
+            "macd": macd_line,
+            "macd_signal": macd_signal,
+            "macd_histogram": macd_hist,
+            "bollinger_upper": bb_upper,
+            "bollinger_middle": bb_middle,
+            "bollinger_lower": bb_lower,
+            "atr": atr_val,
+            "adx": adx_val,
             "resistance_levels": [round(p, 8) for p in resistance],
             "support_levels": [round(p, 8) for p in support],
             "trend": trend,
+            "signal_score": score,
+            "signal_interpretation": signal,
         }
 
     # ──────────────────────────────────────────────────────────────
